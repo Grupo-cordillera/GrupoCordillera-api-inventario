@@ -4,8 +4,10 @@ import api.inventario.dto.ProductoRequest;
 import api.inventario.dto.ProductoResponse;
 import api.inventario.model.IndicadorStock;
 import api.inventario.model.ItemInventario;
+import api.inventario.model.MetricaRentabilidad;
 import api.inventario.model.Producto;
 import api.inventario.service.InventarioService;
+import api.inventario.service.MetricaService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -20,6 +22,7 @@ import java.util.Map;
 public class InventarioController {
 
     private final InventarioService inventarioService;
+    private final MetricaService metricaService; // ¡Agregamos la inyección del servicio de métricas!
 
     @PostMapping("/productos")
     public ResponseEntity<ProductoResponse> crearProducto(@Valid @RequestBody ProductoRequest request) {
@@ -87,4 +90,19 @@ public class InventarioController {
         return ResponseEntity.noContent().build(); // Devuelve un 204 No Content
     }
 
+    @PostMapping("/metricas/{sku}")
+    public ResponseEntity<MetricaRentabilidad> calcularMetricas(
+            @PathVariable String sku,
+            @RequestParam Double precioVenta,
+            @RequestParam Double costoOperativo) {
+
+        // Usamos el servicio que inyectamos arriba
+        MetricaRentabilidad metrica = metricaService.generarMetrica(sku, precioVenta, costoOperativo);
+        return ResponseEntity.ok(metrica);
+    }
+
+    @GetMapping("/metricas/{sku}")
+    public ResponseEntity<List<MetricaRentabilidad>> obtenerMetricas(@PathVariable String sku) {
+        return ResponseEntity.ok(metricaService.obtenerHistorialMetricas(sku));
+    }
 }
