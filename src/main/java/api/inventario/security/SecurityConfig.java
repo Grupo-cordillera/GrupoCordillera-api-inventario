@@ -30,8 +30,9 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // Si quisieras dejar una ruta pública, lo harías así:
                         // .requestMatchers("/api/inventario/publico/**").permitAll()
-
-                        // Exigimos autenticación para todo lo demás
+                        // Endpoints públicos para Swagger / OpenAPI 3
+                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+                        // Cualquier otra petición requiere autenticación
                         .anyRequest().authenticated()
                 )
 
