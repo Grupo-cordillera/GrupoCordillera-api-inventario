@@ -5,6 +5,7 @@ import api.inventario.model.ItemInventario;
 import api.inventario.model.Producto;
 import api.inventario.repository.IndicadorStockRepository;
 import api.inventario.repository.ItemInventarioRepository;
+import api.inventario.repository.MetricaRepository;
 import api.inventario.repository.ProductoRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +20,7 @@ public class InventarioService {
     private final ProductoRepository productoRepository;
     private final IndicadorStockRepository indicadorRepository;
     private final ItemInventarioRepository itemRepository;
+    private final MetricaRepository metricaRepository;
 
     @Transactional
     public Producto crearNuevoProducto(String nombre, String descripcion, Integer umbralMinimo) {
@@ -108,8 +110,10 @@ public class InventarioService {
         Producto producto = productoRepository.findBySku(sku)
                 .orElseThrow(() -> new RuntimeException("No se puede eliminar: Producto no encontrado"));
 
-        // Al borrar el producto, JPA se encargará de borrar su stock y métricas
-        // si configuraste las relaciones con CascadeType.ALL
+        itemRepository.deleteByProducto_Sku(sku);
+        metricaRepository.deleteByProducto_Sku(sku);
+        indicadorRepository.deleteByProducto_Sku(sku);
+
         productoRepository.delete(producto);
     }
 }

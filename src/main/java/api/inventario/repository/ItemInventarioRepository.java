@@ -9,4 +9,5 @@ import java.util.List;
 @Repository
 public interface ItemInventarioRepository extends JpaRepository<ItemInventario, Long> {
     List<ItemInventario> findByProducto_Sku(String sku);
+    void deleteByProducto_Sku(String sku);
 }

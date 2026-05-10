@@ -6,5 +6,6 @@ public record ProductoResponse(
         String sku,
         String nombre,
         String descripcion,
+        Integer stockTotalConsolidado,
         String estadoStock
 ) {}

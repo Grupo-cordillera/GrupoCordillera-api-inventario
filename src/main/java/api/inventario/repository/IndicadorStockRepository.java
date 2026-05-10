@@ -9,4 +9,5 @@ import java.util.Optional;
 @Repository
 public interface IndicadorStockRepository extends JpaRepository<IndicadorStock, Long> {
     Optional<IndicadorStock> findByProducto_Sku(String sku);
+    void deleteByProducto_Sku(String sku);
 }

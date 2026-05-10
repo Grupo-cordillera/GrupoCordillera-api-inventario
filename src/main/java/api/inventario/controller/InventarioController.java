@@ -13,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -32,12 +33,14 @@ public class InventarioController {
                 request.descripcion(),
                 request.umbralMinimo()
         );
+        IndicadorStock stock = inventarioService.consultarStock(p.getSku());
 
         ProductoResponse response = new ProductoResponse(
                 p.getSku(),
                 p.getNombre(),
                 p.getDescripcion(),
-                "SIN_STOCK_INICIAL"
+                stock.getStockTotalConsolidado(),
+                stock.getEstado()
         );
 
         return ResponseEntity.ok(response);
@@ -46,41 +49,58 @@ public class InventarioController {
     @GetMapping("/productos")
     public ResponseEntity<List<ProductoResponse>> listarTodosLosProductos() {
         List<ProductoResponse> productos = inventarioService.obtenerTodosLosProductos().stream()
-                .map(p -> new ProductoResponse(p.getSku(), p.getNombre(), p.getDescripcion(), "VER_DETALLE"))
+                .map(p -> {
+                    IndicadorStock stock;
+                    try {
+                        stock = inventarioService.consultarStock(p.getSku());
+                    } catch (RuntimeException ex) {
+                        stock = null;
+                    }
+
+                    return new ProductoResponse(
+                            p.getSku(),
+                            p.getNombre(),
+                            p.getDescripcion(),
+                            stock != null ? stock.getStockTotalConsolidado() : 0,
+                            stock != null ? stock.getEstado() : "SIN_STOCK"
+                    );
+                })
                 .toList();
 
         return ResponseEntity.ok(productos);
     }
 
     @PostMapping("/stock/entrada")
-    public ResponseEntity<ItemInventario> registrarEntrada(@RequestBody Map<String, Object> body) {
+    public ResponseEntity<Map<String, Object>> registrarEntrada(@RequestBody Map<String, Object> body) {
         ItemInventario item = inventarioService.agregarStock(
                 (String) body.get("sku"),
                 (String) body.get("origen"), // Ej: "Proveedor Tech Limitada"
                 (Integer) body.get("cantidad")
         );
-        return ResponseEntity.ok(item);
+        return ResponseEntity.ok(mapearItem(item));
     }
 
     @PostMapping("/stock/salida")
-    public ResponseEntity<ItemInventario> registrarSalida(@RequestBody Map<String, Object> body) {
+    public ResponseEntity<Map<String, Object>> registrarSalida(@RequestBody Map<String, Object> body) {
         ItemInventario item = inventarioService.registrarSalida(
                 (String) body.get("sku"),
                 (String) body.get("destino"), // Ej: "Boleta #12345"
                 (Integer) body.get("cantidad")
         );
-        return ResponseEntity.ok(item);
+        return ResponseEntity.ok(mapearItem(item));
     }
 
     @GetMapping("/stock/{sku}")
-    public ResponseEntity<IndicadorStock> consultarStock(@PathVariable String sku) {
+    public ResponseEntity<Map<String, Object>> consultarStock(@PathVariable String sku) {
         IndicadorStock stock = inventarioService.consultarStock(sku);
-        return ResponseEntity.ok(stock);
+        return ResponseEntity.ok(mapearIndicadorStock(stock));
     }
 
     @GetMapping("/movimientos/{sku}")
-    public ResponseEntity<List<ItemInventario>> historialMovimientos(@PathVariable String sku) {
-        List<ItemInventario> historial = inventarioService.obtenerHistorial(sku);
+    public ResponseEntity<List<Map<String, Object>>> historialMovimientos(@PathVariable String sku) {
+        List<Map<String, Object>> historial = inventarioService.obtenerHistorial(sku).stream()
+                .map(this::mapearItem)
+                .toList();
         return ResponseEntity.ok(historial);
     }
 
@@ -91,18 +111,69 @@ public class InventarioController {
     }
 
     @PostMapping("/metricas/{sku}")
-    public ResponseEntity<MetricaRentabilidad> calcularMetricas(
+    public ResponseEntity<Map<String, Object>> calcularMetricas(
             @PathVariable String sku,
             @RequestParam Double precioVenta,
             @RequestParam Double costoOperativo) {
 
         // Usamos el servicio que inyectamos arriba
         MetricaRentabilidad metrica = metricaService.generarMetrica(sku, precioVenta, costoOperativo);
-        return ResponseEntity.ok(metrica);
+        return ResponseEntity.ok(mapearMetrica(metrica));
     }
 
     @GetMapping("/metricas/{sku}")
-    public ResponseEntity<List<MetricaRentabilidad>> obtenerMetricas(@PathVariable String sku) {
-        return ResponseEntity.ok(metricaService.obtenerHistorialMetricas(sku));
+    public ResponseEntity<List<Map<String, Object>>> obtenerMetricas(@PathVariable String sku) {
+        List<Map<String, Object>> metricas = metricaService.obtenerHistorialMetricas(sku).stream()
+                .map(this::mapearMetrica)
+                .toList();
+        return ResponseEntity.ok(metricas);
+    }
+
+    private ProductoResponse mapearProductoConStock(Producto producto) {
+        IndicadorStock stock;
+        try {
+            stock = inventarioService.consultarStock(producto.getSku());
+        } catch (RuntimeException ex) {
+            stock = null;
+        }
+
+        return new ProductoResponse(
+                producto.getSku(),
+                producto.getNombre(),
+                producto.getDescripcion(),
+                stock != null ? stock.getStockTotalConsolidado() : 0,
+                stock != null ? stock.getEstado() : "SIN_STOCK"
+        );
+    }
+
+    private Map<String, Object> mapearItem(ItemInventario item) {
+        Map<String, Object> respuesta = new LinkedHashMap<>();
+        respuesta.put("id", item.getId());
+        respuesta.put("producto", mapearProductoConStock(item.getProducto()));
+        respuesta.put("origen", item.getOrigen());
+        respuesta.put("cantidad", item.getCantidad());
+        respuesta.put("ultimaActualizacion", item.getUltimaActualizacion());
+        return respuesta;
+    }
+
+    private Map<String, Object> mapearIndicadorStock(IndicadorStock stock) {
+        Map<String, Object> respuesta = new LinkedHashMap<>();
+        respuesta.put("id", stock.getId());
+        respuesta.put("producto", mapearProductoConStock(stock.getProducto()));
+        respuesta.put("stockTotalConsolidado", stock.getStockTotalConsolidado());
+        respuesta.put("umbralMinimo", stock.getUmbralMinimo());
+        respuesta.put("estado", stock.getEstado());
+        return respuesta;
+    }
+
+    private Map<String, Object> mapearMetrica(MetricaRentabilidad metrica) {
+        Map<String, Object> respuesta = new LinkedHashMap<>();
+        respuesta.put("id", metrica.getId());
+        respuesta.put("producto", mapearProductoConStock(metrica.getProducto()));
+        respuesta.put("margenGanancia", metrica.getMargenGanancia());
+        respuesta.put("costoOperativo", metrica.getCostoOperativo());
+        respuesta.put("roi", metrica.getRoi());
+        respuesta.put("fechaCalculo", metrica.getFechaCalculo());
+        return respuesta;
     }
 }
