@@ -18,7 +18,6 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import java.util.List;
 import java.util.Map;
 
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -48,7 +47,7 @@ class InventarioControllerTest {
         Producto producto = Producto.crearNuevo("Teclado", "Mecanico");
         IndicadorStock indicador = indicadorConStock(producto, 0, 5, "SIN_STOCK");
 
-        when(inventarioService.crearNuevoProducto(eq("Teclado"), eq("Mecanico"), eq(5))).thenReturn(producto);
+        when(inventarioService.crearNuevoProducto("Teclado", "Mecanico", 5)).thenReturn(producto);
         when(inventarioService.consultarStock(producto.getSku())).thenReturn(indicador);
 
         Map<String, Object> request = Map.of(
@@ -89,7 +88,7 @@ class InventarioControllerTest {
         IndicadorStock indicador = indicadorConStock(producto, 50, 10, "STOCK_OK");
         ItemInventario item = ItemInventario.registrarEntrada(producto, "Proveedor", 5);
 
-        when(inventarioService.agregarStock(eq(producto.getSku()), eq("Proveedor"), eq(5))).thenReturn(item);
+        when(inventarioService.agregarStock(producto.getSku(), "Proveedor", 5)).thenReturn(item);
         when(inventarioService.consultarStock(producto.getSku())).thenReturn(indicador);
 
         Map<String, Object> request = Map.of(
