@@ -9,4 +9,5 @@ import java.util.List;
 @Repository
 public interface MetricaRepository extends JpaRepository<MetricaRentabilidad, Long> {
     List<MetricaRentabilidad> findByProducto_Sku(String sku);
+    void deleteByProducto_Sku(String sku);
 }
