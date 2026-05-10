@@ -1,5 +1,8 @@
 package api.inventario.service;
 
+import api.inventario.exception.IndicadorStockNotFoundException;
+import api.inventario.exception.ProductoNotFoundException;
+import api.inventario.exception.StockInsuficienteException;
 import api.inventario.model.IndicadorStock;
 import api.inventario.model.ItemInventario;
 import api.inventario.model.Producto;
@@ -38,7 +41,7 @@ public class InventarioService {
     @Transactional
     public ItemInventario agregarStock(String sku, String origen, Integer cantidad) {
         Producto producto = productoRepository.findBySku(sku)
-                .orElseThrow(() -> new RuntimeException("Producto no encontrado"));
+                .orElseThrow(() -> new ProductoNotFoundException("Producto no encontrado"));
 
         // 1. Registrar el movimiento individual
         ItemInventario nuevoItem = ItemInventario.registrarEntrada(producto, origen, cantidad);
@@ -46,7 +49,7 @@ public class InventarioService {
 
         // 2. Actualizar el consolidado (IndicadorStock)
         IndicadorStock indicador = indicadorRepository.findByProducto_Sku(sku)
-                .orElseThrow(() -> new RuntimeException("Error: El producto no tiene indicador de stock"));
+                .orElseThrow(() -> new IndicadorStockNotFoundException("Error: El producto no tiene indicador de stock"));
 
         indicador.setStockTotalConsolidado(indicador.getStockTotalConsolidado() + cantidad);
 
@@ -64,14 +67,14 @@ public class InventarioService {
     public ItemInventario registrarSalida(String sku, String destinoOVenta, Integer cantidad) {
         // 1. Buscamos el producto y su indicador
         Producto producto = productoRepository.findBySku(sku)
-                .orElseThrow(() -> new RuntimeException("Producto no encontrado"));
+                .orElseThrow(() -> new ProductoNotFoundException("Producto no encontrado"));
 
         IndicadorStock indicador = indicadorRepository.findByProducto_Sku(sku)
-                .orElseThrow(() -> new RuntimeException("Error: El producto no tiene indicador de stock"));
+                .orElseThrow(() -> new IndicadorStockNotFoundException("Error: El producto no tiene indicador de stock"));
 
         // 2. VALIDACIÓN CRÍTICA: ¿Tenemos stock suficiente?
         if (indicador.getStockTotalConsolidado() < cantidad) {
-            throw new RuntimeException("Stock insuficiente. Solo tienes " + indicador.getStockTotalConsolidado() + " unidades disponibles.");
+            throw new StockInsuficienteException("Stock insuficiente. Solo tienes " + indicador.getStockTotalConsolidado() + " unidades disponibles.");
         }
 
         // 3. Registramos el movimiento.
@@ -98,7 +101,7 @@ public class InventarioService {
 
     public IndicadorStock consultarStock(String sku) {
         return indicadorRepository.findByProducto_Sku(sku)
-                .orElseThrow(() -> new RuntimeException("No hay información de stock para el SKU: " + sku));
+                .orElseThrow(() -> new IndicadorStockNotFoundException("No hay información de stock para el SKU: " + sku));
     }
 
     public List<ItemInventario> obtenerHistorial(String sku) {
@@ -108,7 +111,7 @@ public class InventarioService {
     @Transactional
     public void eliminarProducto(String sku) {
         Producto producto = productoRepository.findBySku(sku)
-                .orElseThrow(() -> new RuntimeException("No se puede eliminar: Producto no encontrado"));
+                .orElseThrow(() -> new ProductoNotFoundException("No se puede eliminar: Producto no encontrado"));
 
         itemRepository.deleteByProducto_Sku(sku);
         metricaRepository.deleteByProducto_Sku(sku);

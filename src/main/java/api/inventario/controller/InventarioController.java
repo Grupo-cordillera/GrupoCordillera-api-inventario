@@ -22,6 +22,10 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class InventarioController {
 
+    private static final String PRODUCTO = "producto";
+    private static final String CANTIDAD = "cantidad";
+    private static final String ID = "id";
+
     private final InventarioService inventarioService;
     private final MetricaService metricaService; // ¡Agregamos la inyección del servicio de métricas!
 
@@ -35,36 +39,19 @@ public class InventarioController {
         );
         IndicadorStock stock = inventarioService.consultarStock(p.getSku());
 
-        ProductoResponse response = new ProductoResponse(
+        return ResponseEntity.ok(new ProductoResponse(
                 p.getSku(),
                 p.getNombre(),
                 p.getDescripcion(),
                 stock.getStockTotalConsolidado(),
                 stock.getEstado()
-        );
-
-        return ResponseEntity.ok(response);
+        ));
     }
 
     @GetMapping("/productos")
     public ResponseEntity<List<ProductoResponse>> listarTodosLosProductos() {
         List<ProductoResponse> productos = inventarioService.obtenerTodosLosProductos().stream()
-                .map(p -> {
-                    IndicadorStock stock;
-                    try {
-                        stock = inventarioService.consultarStock(p.getSku());
-                    } catch (RuntimeException ex) {
-                        stock = null;
-                    }
-
-                    return new ProductoResponse(
-                            p.getSku(),
-                            p.getNombre(),
-                            p.getDescripcion(),
-                            stock != null ? stock.getStockTotalConsolidado() : 0,
-                            stock != null ? stock.getEstado() : "SIN_STOCK"
-                    );
-                })
+                .map(this::mapearProductoConStock)
                 .toList();
 
         return ResponseEntity.ok(productos);
@@ -75,7 +62,7 @@ public class InventarioController {
         ItemInventario item = inventarioService.agregarStock(
                 (String) body.get("sku"),
                 (String) body.get("origen"), // Ej: "Proveedor Tech Limitada"
-                (Integer) body.get("cantidad")
+                (Integer) body.get(CANTIDAD)
         );
         return ResponseEntity.ok(mapearItem(item));
     }
@@ -85,7 +72,7 @@ public class InventarioController {
         ItemInventario item = inventarioService.registrarSalida(
                 (String) body.get("sku"),
                 (String) body.get("destino"), // Ej: "Boleta #12345"
-                (Integer) body.get("cantidad")
+                (Integer) body.get(CANTIDAD)
         );
         return ResponseEntity.ok(mapearItem(item));
     }
@@ -148,18 +135,18 @@ public class InventarioController {
 
     private Map<String, Object> mapearItem(ItemInventario item) {
         Map<String, Object> respuesta = new LinkedHashMap<>();
-        respuesta.put("id", item.getId());
-        respuesta.put("producto", mapearProductoConStock(item.getProducto()));
+        respuesta.put(ID, item.getId());
+        respuesta.put(PRODUCTO, mapearProductoConStock(item.getProducto()));
         respuesta.put("origen", item.getOrigen());
-        respuesta.put("cantidad", item.getCantidad());
+        respuesta.put(CANTIDAD, item.getCantidad());
         respuesta.put("ultimaActualizacion", item.getUltimaActualizacion());
         return respuesta;
     }
 
     private Map<String, Object> mapearIndicadorStock(IndicadorStock stock) {
         Map<String, Object> respuesta = new LinkedHashMap<>();
-        respuesta.put("id", stock.getId());
-        respuesta.put("producto", mapearProductoConStock(stock.getProducto()));
+        respuesta.put(ID, stock.getId());
+        respuesta.put(PRODUCTO, mapearProductoConStock(stock.getProducto()));
         respuesta.put("stockTotalConsolidado", stock.getStockTotalConsolidado());
         respuesta.put("umbralMinimo", stock.getUmbralMinimo());
         respuesta.put("estado", stock.getEstado());
@@ -168,8 +155,8 @@ public class InventarioController {
 
     private Map<String, Object> mapearMetrica(MetricaRentabilidad metrica) {
         Map<String, Object> respuesta = new LinkedHashMap<>();
-        respuesta.put("id", metrica.getId());
-        respuesta.put("producto", mapearProductoConStock(metrica.getProducto()));
+        respuesta.put(ID, metrica.getId());
+        respuesta.put(PRODUCTO, mapearProductoConStock(metrica.getProducto()));
         respuesta.put("margenGanancia", metrica.getMargenGanancia());
         respuesta.put("costoOperativo", metrica.getCostoOperativo());
         respuesta.put("roi", metrica.getRoi());
