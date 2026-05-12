@@ -2,6 +2,7 @@ package api.inventario.controller;
 
 import api.inventario.model.IndicadorStock;
 import api.inventario.model.ItemInventario;
+import api.inventario.model.MetricaRentabilidad;
 import api.inventario.model.Producto;
 import api.inventario.service.InventarioService;
 import api.inventario.service.MetricaService;
@@ -107,17 +108,78 @@ class InventarioControllerTest {
     }
 
     @Test
-    void consultarStock_devuelveIndicadorConProducto() throws Exception {
-        Producto producto = Producto.crearNuevo("Router", "WiFi 6");
-        IndicadorStock indicador = indicadorConStock(producto, 3, 5, "STOCK_BAJO");
+    void registrarSalida_devuelveItemConProductoCompleto() throws Exception {
+        Producto producto = Producto.crearNuevo("Monitor", "4K");
+        IndicadorStock indicador = indicadorConStock(producto, 10, 5, "STOCK_OK");
+        ItemInventario item = ItemInventario.registrarEntrada(producto, "Boleta #123", -2);
 
+        when(inventarioService.registrarSalida(producto.getSku(), "Boleta #123", 2)).thenReturn(item);
         when(inventarioService.consultarStock(producto.getSku())).thenReturn(indicador);
 
-        mockMvc.perform(get("/api/inventario/stock/{sku}", producto.getSku()))
+        Map<String, Object> request = Map.of(
+                "sku", producto.getSku(),
+                "destino", "Boleta #123",
+                "cantidad", 2
+        );
+
+        mockMvc.perform(post("/api/inventario/stock/salida")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.producto.sku").value(producto.getSku()))
-                .andExpect(jsonPath("$.stockTotalConsolidado").value(3))
-                .andExpect(jsonPath("$.estado").value("STOCK_BAJO"));
+                .andExpect(jsonPath("$.producto.stockTotalConsolidado").value(10))
+                .andExpect(jsonPath("$.cantidad").value(-2));
+    }
+
+    @Test
+    void historialMovimientos_devuelveListaDeItems() throws Exception {
+        Producto producto = Producto.crearNuevo("Webcam", "1080p");
+        IndicadorStock indicador = indicadorConStock(producto, 10, 2, "STOCK_OK");
+        ItemInventario item = ItemInventario.registrarEntrada(producto, "Compra", 10);
+
+        when(inventarioService.obtenerHistorial(producto.getSku())).thenReturn(List.of(item));
+        when(inventarioService.consultarStock(producto.getSku())).thenReturn(indicador);
+
+        mockMvc.perform(get("/api/inventario/movimientos/{sku}", producto.getSku()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].producto.sku").value(producto.getSku()))
+                .andExpect(jsonPath("$[0].producto.estadoStock").value("STOCK_OK"))
+                .andExpect(jsonPath("$[0].cantidad").value(10));
+    }
+
+    @Test
+    void calcularMetricas_devuelveMetricaConProductoCompleto() throws Exception {
+        Producto producto = Producto.crearNuevo("Laptop", "Gamer");
+        IndicadorStock indicador = indicadorConStock(producto, 1, 1, "STOCK_OK");
+        MetricaRentabilidad metrica = MetricaRentabilidad.calcularPara(producto, 1500.0, 1200.0);
+
+        when(metricaService.generarMetrica(producto.getSku(), 1500.0, 1200.0)).thenReturn(metrica);
+        when(inventarioService.consultarStock(producto.getSku())).thenReturn(indicador);
+
+        mockMvc.perform(post("/api/inventario/metricas/{sku}", producto.getSku())
+                        .param("precioVenta", "1500.0")
+                        .param("costoOperativo", "1200.0"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.producto.sku").value(producto.getSku()))
+                .andExpect(jsonPath("$.margenGanancia").value(metrica.getMargenGanancia()))
+                .andExpect(jsonPath("$.roi").value(metrica.getRoi()))
+                .andExpect(jsonPath("$.fechaCalculo").exists());
+    }
+
+    @Test
+    void obtenerMetricas_devuelveHistorialDeMetricas() throws Exception {
+        Producto producto = Producto.crearNuevo("Silla", "Ergonómica");
+        IndicadorStock indicador = indicadorConStock(producto, 2, 1, "STOCK_OK");
+        MetricaRentabilidad metrica = MetricaRentabilidad.calcularPara(producto, 300.0, 200.0);
+
+        when(metricaService.obtenerHistorialMetricas(producto.getSku())).thenReturn(List.of(metrica));
+        when(inventarioService.consultarStock(producto.getSku())).thenReturn(indicador);
+
+        mockMvc.perform(get("/api/inventario/metricas/{sku}", producto.getSku()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].producto.sku").value(producto.getSku()))
+                .andExpect(jsonPath("$[0].producto.estadoStock").value("STOCK_OK"))
+                .andExpect(jsonPath("$[0].margenGanancia").value(metrica.getMargenGanancia()));
     }
 
     private IndicadorStock indicadorConStock(Producto producto, int stock, int umbral, String estado) {
