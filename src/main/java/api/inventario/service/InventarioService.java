@@ -8,7 +8,6 @@ import api.inventario.model.ItemInventario;
 import api.inventario.model.Producto;
 import api.inventario.repository.IndicadorStockRepository;
 import api.inventario.repository.ItemInventarioRepository;
-import api.inventario.repository.MetricaRepository;
 import api.inventario.repository.ProductoRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -23,7 +22,6 @@ public class InventarioService {
     private final ProductoRepository productoRepository;
     private final IndicadorStockRepository indicadorRepository;
     private final ItemInventarioRepository itemRepository;
-    private final MetricaRepository metricaRepository;
 
     @Transactional
     public Producto crearNuevoProducto(String nombre, String descripcion, Integer umbralMinimo) {
@@ -114,7 +112,6 @@ public class InventarioService {
                 .orElseThrow(() -> new ProductoNotFoundException("No se puede eliminar: Producto no encontrado"));
 
         itemRepository.deleteByProducto_Sku(sku);
-        metricaRepository.deleteByProducto_Sku(sku);
         indicadorRepository.deleteByProducto_Sku(sku);
 
         productoRepository.delete(producto);

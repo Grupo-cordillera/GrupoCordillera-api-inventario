@@ -34,18 +34,5 @@ class DtoCoverageTest {
         assertEquals(fecha, response.ultimaActualizacion());
     }
 
-    @Test
-    void metricaRentabilidadResponse_exponeCampos() {
-        ProductoResponse producto = new ProductoResponse("SKU-3", "Producto 3", "Desc 3", 12, "STOCK_OK");
-        LocalDate fecha = LocalDate.of(2026, 5, 12);
-        MetricaRentabilidadResponse response = new MetricaRentabilidadResponse(3L, producto, 20.5, 10.0, 2.05, fecha);
-
-        assertEquals(3L, response.id());
-        assertEquals(producto, response.producto());
-        assertEquals(20.5, response.margenGanancia());
-        assertEquals(10.0, response.costoOperativo());
-        assertEquals(2.05, response.roi());
-        assertEquals(fecha, response.fechaCalculo());
-    }
 }
 

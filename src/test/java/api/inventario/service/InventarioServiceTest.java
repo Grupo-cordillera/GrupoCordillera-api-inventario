@@ -5,7 +5,6 @@ import api.inventario.model.ItemInventario;
 import api.inventario.model.Producto;
 import api.inventario.repository.IndicadorStockRepository;
 import api.inventario.repository.ItemInventarioRepository;
-import api.inventario.repository.MetricaRepository;
 import api.inventario.repository.ProductoRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -36,9 +35,6 @@ class InventarioServiceTest {
 
     @Mock
     private ItemInventarioRepository itemRepository;
-
-    @Mock
-    private MetricaRepository metricaRepository;
 
     @InjectMocks
     private InventarioService inventarioService;
@@ -141,7 +137,6 @@ class InventarioServiceTest {
         inventarioService.eliminarProducto(sku);
 
         verify(itemRepository).deleteByProducto_Sku(sku);
-        verify(metricaRepository).deleteByProducto_Sku(sku);
         verify(indicadorRepository).deleteByProducto_Sku(sku);
         verify(productoRepository).delete(producto);
     }
