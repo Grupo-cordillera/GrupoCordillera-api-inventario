@@ -2,10 +2,8 @@ package api.inventario.controller;
 
 import api.inventario.model.IndicadorStock;
 import api.inventario.model.ItemInventario;
-import api.inventario.model.MetricaRentabilidad;
 import api.inventario.model.Producto;
 import api.inventario.service.InventarioService;
-import api.inventario.service.MetricaService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,12 +32,9 @@ class InventarioControllerTest {
     @Mock
     private InventarioService inventarioService;
 
-    @Mock
-    private MetricaService metricaService;
-
     @BeforeEach
     void setup() {
-        InventarioController controller = new InventarioController(inventarioService, metricaService);
+        InventarioController controller = new InventarioController(inventarioService);
         mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
     }
 
@@ -145,41 +140,6 @@ class InventarioControllerTest {
                 .andExpect(jsonPath("$[0].producto.sku").value(producto.getSku()))
                 .andExpect(jsonPath("$[0].producto.estadoStock").value("STOCK_OK"))
                 .andExpect(jsonPath("$[0].cantidad").value(10));
-    }
-
-    @Test
-    void calcularMetricas_devuelveMetricaConProductoCompleto() throws Exception {
-        Producto producto = Producto.crearNuevo("Laptop", "Gamer");
-        IndicadorStock indicador = indicadorConStock(producto, 1, 1, "STOCK_OK");
-        MetricaRentabilidad metrica = MetricaRentabilidad.calcularPara(producto, 1500.0, 1200.0);
-
-        when(metricaService.generarMetrica(producto.getSku(), 1500.0, 1200.0)).thenReturn(metrica);
-        when(inventarioService.consultarStock(producto.getSku())).thenReturn(indicador);
-
-        mockMvc.perform(post("/api/inventario/metricas/{sku}", producto.getSku())
-                        .param("precioVenta", "1500.0")
-                        .param("costoOperativo", "1200.0"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.producto.sku").value(producto.getSku()))
-                .andExpect(jsonPath("$.margenGanancia").value(metrica.getMargenGanancia()))
-                .andExpect(jsonPath("$.roi").value(metrica.getRoi()))
-                .andExpect(jsonPath("$.fechaCalculo").exists());
-    }
-
-    @Test
-    void obtenerMetricas_devuelveHistorialDeMetricas() throws Exception {
-        Producto producto = Producto.crearNuevo("Silla", "Ergonómica");
-        IndicadorStock indicador = indicadorConStock(producto, 2, 1, "STOCK_OK");
-        MetricaRentabilidad metrica = MetricaRentabilidad.calcularPara(producto, 300.0, 200.0);
-
-        when(metricaService.obtenerHistorialMetricas(producto.getSku())).thenReturn(List.of(metrica));
-        when(inventarioService.consultarStock(producto.getSku())).thenReturn(indicador);
-
-        mockMvc.perform(get("/api/inventario/metricas/{sku}", producto.getSku()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].producto.sku").value(producto.getSku()))
-                .andExpect(jsonPath("$[0].producto.estadoStock").value("STOCK_OK"))
-                .andExpect(jsonPath("$[0].margenGanancia").value(metrica.getMargenGanancia()));
     }
 
     private IndicadorStock indicadorConStock(Producto producto, int stock, int umbral, String estado) {

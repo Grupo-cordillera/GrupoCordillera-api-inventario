@@ -4,10 +4,8 @@ import api.inventario.dto.ProductoRequest;
 import api.inventario.dto.ProductoResponse;
 import api.inventario.model.IndicadorStock;
 import api.inventario.model.ItemInventario;
-import api.inventario.model.MetricaRentabilidad;
 import api.inventario.model.Producto;
 import api.inventario.service.InventarioService;
-import api.inventario.service.MetricaService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -28,7 +26,6 @@ public class InventarioController {
     private static final String ID = "id";
 
     private final InventarioService inventarioService;
-    private final MetricaService metricaService;
 
     @PostMapping("/productos")
     @PreAuthorize("hasAnyRole('ADMIN', 'EMPLEADO')")
@@ -102,25 +99,6 @@ public class InventarioController {
         return ResponseEntity.noContent().build();
     }
 
-    @PostMapping("/metricas/{sku}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Map<String, Object>> calcularMetricas(
-            @PathVariable String sku,
-            @RequestParam Double precioVenta,
-            @RequestParam Double costoOperativo) {
-        MetricaRentabilidad metrica = metricaService.generarMetrica(sku, precioVenta, costoOperativo);
-        return ResponseEntity.ok(mapearMetrica(metrica));
-    }
-
-    @GetMapping("/metricas/{sku}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<List<Map<String, Object>>> obtenerMetricas(@PathVariable String sku) {
-        List<Map<String, Object>> metricas = metricaService.obtenerHistorialMetricas(sku).stream()
-                .map(this::mapearMetrica)
-                .toList();
-        return ResponseEntity.ok(metricas);
-    }
-
     private ProductoResponse mapearProductoConStock(Producto producto) {
         IndicadorStock stock;
         try {
@@ -154,17 +132,6 @@ public class InventarioController {
         respuesta.put("stockTotalConsolidado", stock.getStockTotalConsolidado());
         respuesta.put("umbralMinimo", stock.getUmbralMinimo());
         respuesta.put("estado", stock.getEstado());
-        return respuesta;
-    }
-
-    private Map<String, Object> mapearMetrica(MetricaRentabilidad metrica) {
-        Map<String, Object> respuesta = new LinkedHashMap<>();
-        respuesta.put(ID, metrica.getId());
-        respuesta.put(PRODUCTO, mapearProductoConStock(metrica.getProducto()));
-        respuesta.put("margenGanancia", metrica.getMargenGanancia());
-        respuesta.put("costoOperativo", metrica.getCostoOperativo());
-        respuesta.put("roi", metrica.getRoi());
-        respuesta.put("fechaCalculo", metrica.getFechaCalculo());
         return respuesta;
     }
 }
